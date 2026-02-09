@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鋼板切割排版計算器 (2D Bin Packing)</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f3f4f6; }
+        .canvas-container { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        canvas { width: 100%; height: auto; display: block; background-color: #fff; }
+        /* 載入動畫 */
+        .spinner {
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top: 3px solid #fff;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Modal 動畫 */
+        .modal { transition: opacity 0.25s ease; pointer-events: none; opacity: 0;}
+        .modal.active { opacity: 1; pointer-events: auto; }
+        body.modal-active { overflow-x: hidden; overflow-y: hidden; }
+        
+        /* 表格列閃爍動畫 */
+        @keyframes highlight {
+            0% { background-color: #dbeafe; }
+            100% { background-color: transparent; }
+        }
+        .row-highlight {
+            animation: highlight 1s ease-out;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- 標題區 -->
+    <header class="bg-slate-800 text-white p-4 shadow-md sticky top-0 z-50">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl md:text-2xl font-bold"><i class="fas fa-layer-group mr-2"></i>鋼板切割排版計算器</h1>
+            <span class="text-xs md:text-sm bg-slate-700 px-2 py-1 rounded">V2.10 清單式檢視版</span>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 md:p-6">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- 左側：輸入控制區 -->
+            <div class="lg:col-span-1 space-y-6">
+                
+                <!-- 1. 母材設定 (改為多重列表) -->
+                <div class="bg-white p-5 rounded-lg shadow border-l-4 border-blue-500">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold flex items-center">
+                            <i class="fas fa-border-all mr-2 text-blue-500"></i>母材庫存設定
+                        </h2>
+                        <button onclick="addMasterSheetRow()" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1 rounded transition">
+                            <i class="fas fa-plus mr-1"></i>新增規格
+                        </button>
+                    </div>
+                    
+                    <div class="space-y-3" id="masterSheetsList">
+                        <!-- 母材列表容器 -->
+                    </div>
+
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">全域刀具損耗 (Kerf)</label>
+                        <input type="number" id="kerfSize" value="3" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-gray-500 outline-none transition" placeholder="例如: 3">
+                        <p class="text-xs text-gray-500 mt-1">* 系統將自動選擇最適合的母材尺寸進行排版</p>
+                    </div>
+                </div>
+
+                <!-- 2. 零件清單 -->
+                <div class="bg-white p-5 rounded-lg shadow border-l-4 border-green-500">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold flex items-center">
+                            <i class="fas fa-th-list mr-2 text-green-500"></i>零件清單
+                        </h2>
+                        <div class="flex gap-2">
+                            <button onclick="clearParts()" class="text-xs bg-red-100 text-red-700 hover:bg-red-200 px-3 py-1 rounded transition">
+                                <i class="fas fa-trash-alt mr-1"></i>清空
+                            </button>
+                            <button onclick="addPartRow()" class="text-xs bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1 rounded transition">
+                                <i class="fas fa-plus mr-1"></i>新增
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto max-h-[500px] overflow-y-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0 z-10">
+                                <tr>
+                                    <th class="px-2 py-2 w-12 text-center">#</th>
+                                    <th class="px-2 py-2 min-w-[90px]">寬 (W)</th>
+                                    <th class="px-2 py-2 min-w-[90px]">高 (H)</th>
+                                    <!-- 加寬數量欄位 -->
+                                    <th class="px-2 py-2 w-28 min-w-[80px] text-center">數量</th>
+                                    <th class="px-2 py-2 w-24 text-center">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="partsTableBody">
+                                <!-- 預設資料 -->
+                                <tr class="border-b hover:bg-gray-50 transition"><td class="p-2 text-center font-bold text-gray-500 row-index">1</td><td class="p-2"><input type="number" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="3747"></td><td class="p-2"><input type="number" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="1130"></td><td class="p-2"><input type="number" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="2"></td><td class="p-2 text-center flex justify-center gap-2"><button onclick="openAutoSplitModal(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動拆解拼接"><i class="fas fa-magic"></i></button><button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td></tr>
+                                <tr class="border-b hover:bg-gray-50 transition"><td class="p-2 text-center font-bold text-gray-500 row-index">2</td><td class="p-2"><input type="number" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="2100"></td><td class="p-2"><input type="number" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="1922"></td><td class="p-2"><input type="number" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="1"></td><td class="p-2 text-center flex justify-center gap-2"><button onclick="openAutoSplitModal(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動拆解拼接"><i class="fas fa-magic"></i></button><button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td></tr>
+                                <tr class="border-b hover:bg-gray-50 transition"><td class="p-2 text-center font-bold text-gray-500 row-index">3</td><td class="p-2"><input type="number" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="2094"></td><td class="p-2"><input type="number" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="600"></td><td class="p-2"><input type="number" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="1"></td><td class="p-2 text-center flex justify-center gap-2"><button onclick="openAutoSplitModal(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動拆解拼接"><i class="fas fa-magic"></i></button><button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td></tr>
+                                <tr class="border-b hover:bg-gray-50 transition"><td class="p-2 text-center font-bold text-gray-500 row-index">4</td><td class="p-2"><input type="number" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="2190"></td><td class="p-2"><input type="number" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="840"></td><td class="p-2"><input type="number" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="1"></td><td class="p-2 text-center flex justify-center gap-2"><button onclick="openAutoSplitModal(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動拆解拼接"><i class="fas fa-magic"></i></button><button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td></tr>
+                                <tr class="border-b hover:bg-gray-50 transition"><td class="p-2 text-center font-bold text-gray-500 row-index">5</td><td class="p-2"><input type="number" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="2100"></td><td class="p-2"><input type="number" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="854"></td><td class="p-2"><input type="number" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="1"></td><td class="p-2 text-center flex justify-center gap-2"><button onclick="openAutoSplitModal(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動拆解拼接"><i class="fas fa-magic"></i></button><button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td></tr>
+                                <tr class="border-b hover:bg-gray-50 transition"><td class="p-2 text-center font-bold text-gray-500 row-index">6</td><td class="p-2"><input type="number" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="2196"></td><td class="p-2"><input type="number" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="190"></td><td class="p-2"><input type="number" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="1"></td><td class="p-2 text-center flex justify-center gap-2"><button onclick="openAutoSplitModal(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動拆解拼接"><i class="fas fa-magic"></i></button><button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td></tr>
+                                <tr class="border-b hover:bg-gray-50 transition"><td class="p-2 text-center font-bold text-gray-500 row-index">7</td><td class="p-2"><input type="number" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="2196"></td><td class="p-2"><input type="number" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="260"></td><td class="p-2"><input type="number" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="1"></td><td class="p-2 text-center flex justify-center gap-2"><button onclick="openAutoSplitModal(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動拆解拼接"><i class="fas fa-magic"></i></button><button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td></tr>
+                                <tr class="border-b hover:bg-gray-50 transition"><td class="p-2 text-center font-bold text-gray-500 row-index">8</td><td class="p-2"><input type="number" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="2196"></td><td class="p-2"><input type="number" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="756"></td><td class="p-2"><input type="number" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="1"></td><td class="p-2 text-center flex justify-center gap-2"><button onclick="openAutoSplitModal(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動拆解拼接"><i class="fas fa-magic"></i></button><button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td></tr>
+                                <tr class="border-b hover:bg-gray-50 transition"><td class="p-2 text-center font-bold text-gray-500 row-index">9</td><td class="p-2"><input type="number" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="2280"></td><td class="p-2"><input type="number" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="710"></td><td class="p-2"><input type="number" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="2"></td><td class="p-2 text-center flex justify-center gap-2"><button onclick="openAutoSplitModal(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動拆解拼接"><i class="fas fa-magic"></i></button><button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-4 flex gap-2">
+                        <button onclick="addPartRow()" class="w-1/2 py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded hover:border-green-500 hover:text-green-500 transition">
+                            + 新增一行
+                        </button>
+                        <button id="calcBtn" onclick="startCalculation()" class="w-1/2 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 shadow-lg transition transform active:scale-95 flex justify-center items-center">
+                            <i class="fas fa-calculator mr-2"></i>開始計算
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 統計結果摘要 -->
+                <div id="summaryCard" class="bg-slate-800 text-white p-5 rounded-lg shadow hidden">
+                    <h3 class="text-lg font-bold mb-3 border-b border-slate-600 pb-2">計算結果總覽</h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center bg-slate-700 p-2 rounded">
+                            <span>所需母材總數：</span>
+                            <span class="font-bold text-2xl text-yellow-400" id="resTotalBins">0</span>
+                        </div>
+                        
+                        <!-- 詳細統計區 -->
+                        <div id="sheetBreakdown" class="bg-slate-700 bg-opacity-50 p-3 rounded text-sm space-y-2">
+                            <!-- JS 動態插入 -->
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4 text-sm border-t border-slate-600 pt-2">
+                            <div class="flex flex-col">
+                                <span class="text-gray-400">總利用率</span>
+                                <span class="font-bold text-lg" id="resEfficiency">0%</span>
+                            </div>
+                            <div class="flex flex-col text-right">
+                                <span class="text-gray-400">總廢料面積</span>
+                                <span class="font-bold text-lg" id="resWaste">0 mm²</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 錯誤/警告訊息區 -->
+                <div id="errorLog" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 text-sm rounded shadow-sm"></div>
+
+            </div>
+
+            <!-- 右側：視覺化結果 (現在只顯示提示) -->
+            <div class="lg:col-span-2">
+                <div id="resultsArea" class="space-y-4">
+                    <!-- 預設顯示畫面 -->
+                    <div class="bg-white p-10 rounded-lg shadow text-center text-gray-400 min-h-[400px] flex flex-col justify-center items-center">
+                        <i class="fas fa-cube text-6xl mb-4"></i>
+                        <p class="text-lg">請確認尺寸並點擊「開始計算」</p>
+                        <p class="text-sm">計算後將顯示排版圖清單</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- 拆解選擇 Modal (Auto Split) -->
+    <div id="autoSplitModal" class="modal fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50" onclick="closeAutoSplitModal()"></div>
+        <div class="modal-container bg-white w-11/12 md:max-w-md mx-auto rounded shadow-lg z-50 overflow-y-auto transform transition-all scale-100">
+            <div class="modal-content py-4 text-left px-6">
+                <div class="flex justify-between items-center pb-3 border-b">
+                    <p class="text-xl font-bold text-gray-700"><i class="fas fa-cut mr-2 text-blue-500"></i>選擇拆解方案</p>
+                    <div class="modal-close cursor-pointer z-50 text-gray-500 hover:text-red-500" onclick="closeAutoSplitModal()">
+                        <i class="fas fa-times text-xl"></i>
+                    </div>
+                </div>
+                <div class="my-5 space-y-4">
+                    <div class="flex justify-between items-center">
+                        <p class="text-gray-600 text-sm">目標零件: <span id="modalPartName" class="font-bold text-gray-800 text-base"></span></p>
+                        <div class="flex items-center gap-2 bg-blue-50 px-3 py-1 rounded border border-blue-200">
+                            <span class="text-xs text-blue-800">拆解組數:</span>
+                            <input type="number" id="splitQtyInput" class="w-12 text-center border rounded text-sm p-1" value="1" min="1">
+                            <span class="text-xs text-gray-500" id="splitQtyMax"></span>
+                        </div>
+                    </div>
+                    
+                    <p class="text-xs text-gray-500">系統已自動計算最佳切割方向 (考慮旋轉後)，請選擇方案：</p>
+                    <div id="splitOptions" class="grid grid-cols-1 gap-3">
+                        <!-- Options generated by JS -->
+                    </div>
+                </div>
+                <div class="flex justify-end pt-2">
+                    <button onclick="closeAutoSplitModal()" class="px-4 py-2 bg-gray-200 text-gray-600 rounded hover:bg-gray-300 transition text-sm">取消</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 排版圖詳情 Modal (Sheet Detail) -->
+    <div id="sheetDetailModal" class="modal fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-75" onclick="closeSheetModal()"></div>
+        <div class="modal-container bg-white w-11/12 md:max-w-6xl h-[90vh] mx-auto rounded shadow-lg z-50 overflow-hidden flex flex-col transform transition-all scale-100">
+            <!-- Header -->
+            <div class="flex justify-between items-center py-3 px-6 border-b bg-gray-50">
+                <div>
+                    <p class="text-2xl font-bold text-gray-800" id="sheetDetailTitle">SHEET X</p>
+                    <p class="text-sm text-gray-500" id="sheetDetailSub">母材資料...</p>
+                </div>
+                <div class="modal-close cursor-pointer z-50 text-gray-500 hover:text-red-500" onclick="closeSheetModal()">
+                    <i class="fas fa-times text-2xl"></i>
+                </div>
+            </div>
+            
+            <!-- Body -->
+            <div class="flex-1 overflow-y-auto p-6 bg-gray-100">
+                <div class="flex flex-col lg:flex-row gap-6">
+                    <!-- 左側：大圖 -->
+                    <div class="lg:w-2/3">
+                        <div class="bg-white p-2 rounded shadow border border-gray-200 overflow-hidden" id="sheetCanvasWrapper">
+                            <canvas id="detailCanvas"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- 右側：清單 -->
+                    <div class="lg:w-1/3">
+                        <div class="bg-white rounded shadow border border-gray-200 p-4">
+                            <h4 class="font-bold text-gray-700 mb-3 border-b pb-2"><i class="fas fa-list mr-2"></i>切割明細 (Cut List)</h4>
+                            <div id="sheetPartsList" class="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
+                                <!-- JS Generated -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-gray-200 text-center p-4 text-xs text-gray-500 mt-10">
+        &copy; 2024 Steel Sheet Optimizer | 2D Bin Packing Algorithm
+    </footer>
+
+    <!-- JavaScript 邏輯 -->
+    <script>
+        // --- 1. 核心類別定義 ---
+
+        class Rect {
+            constructor(x, y, w, h, id = null, label = "") {
+                this.x = x;
+                this.y = y;
+                this.w = w;
+                this.h = h;
+                this.id = id;
+                this.label = label;
+                this.rotated = false;
+            }
+        }
+
+        class GuillotinePacker {
+            constructor(binDefinitions, kerf, allowRotation = true) {
+                this.binDefinitions = binDefinitions; // Array of {w, h, label}
+                this.kerf = kerf;
+                this.allowRotation = allowRotation;
+                this.bins = []; 
+                this.epsilon = 0.001; 
+            }
+
+            fit(items) {
+                items.sort((a, b) => (b.w * b.h) - (a.w * a.h)); 
+
+                let currentItemIndex = 0;
+                
+                while (currentItemIndex < items.length) {
+                    let placed = false;
+                    let item = items[currentItemIndex];
+
+                    for (let bin of this.bins) {
+                        if (this.tryPackInBin(bin, item)) {
+                            placed = true;
+                            break;
+                        }
+                    }
+
+                    if (!placed) {
+                        let bestBinDef = this.findBestBinFor(item);
+                        
+                        if (bestBinDef) {
+                            let newBin = {
+                                id: this.bins.length + 1,
+                                label: bestBinDef.label, 
+                                width: bestBinDef.w,
+                                height: bestBinDef.h,
+                                freeRects: [new Rect(0, 0, bestBinDef.w, bestBinDef.h)],
+                                placedRects: []
+                            };
+                            this.bins.push(newBin);
+                            
+                            if (!this.tryPackInBin(newBin, item)) {
+                                console.error(`Item ${item.id} failed to fit in new selected bin.`);
+                            }
+                        } else {
+                            console.warn(`Item ${item.id} (${item.w}x${item.h}) is too big for ANY available master sheet.`);
+                        }
+                    }
+                    currentItemIndex++;
+                }
+            }
+
+            findBestBinFor(item) {
+                const wK = item.w + this.kerf;
+                const hK = item.h + this.kerf;
+                const epsilon = 0.01;
+                
+                let validDefs = [];
+                
+                for (let def of this.binDefinitions) {
+                    let fits = false;
+                    if (wK <= def.w + epsilon && hK <= def.h + epsilon) fits = true;
+                    else if (this.allowRotation && hK <= def.w + epsilon && wK <= def.h + epsilon) fits = true;
+                    
+                    if (fits) {
+                        validDefs.push(def);
+                    }
+                }
+                
+                if (validDefs.length === 0) return null;
+                
+                validDefs.sort((a, b) => (a.w * a.h) - (b.w * b.h));
+                
+                return validDefs[0];
+            }
+
+            tryPackInBin(bin, item) {
+                let neededW = item.w + this.kerf;
+                let neededH = item.h + this.kerf;
+
+                let bestScore = Number.MAX_VALUE;
+                let bestRectIndex = -1;
+                let bestRotated = false;
+                
+                let bestMaxLeftoverSide = -1; 
+
+                for (let i = 0; i < bin.freeRects.length; i++) {
+                    let free = bin.freeRects[i];
+
+                    if (free.w >= neededW - this.epsilon && free.h >= neededH - this.epsilon) {
+                        let score = free.w * free.h - neededW * neededH;
+                        let [leftover1, leftover2] = this.simulateSplit(free, neededW, neededH);
+                        let maxLeftoverArea = Math.max(leftover1 ? leftover1.w * leftover1.h : 0, leftover2 ? leftover2.w * leftover2.h : 0);
+
+                        if (score < bestScore || (Math.abs(score - bestScore) < this.epsilon && maxLeftoverArea > bestMaxLeftoverSide)) {
+                            bestScore = score;
+                            bestRectIndex = i;
+                            bestRotated = false;
+                            bestMaxLeftoverSide = maxLeftoverArea;
+                        }
+                    }
+
+                    if (this.allowRotation && free.w >= neededH - this.epsilon && free.h >= neededW - this.epsilon) {
+                        let score = free.w * free.h - neededH * neededW;
+                        let [leftover1, leftover2] = this.simulateSplit(free, neededH, neededW);
+                        let maxLeftoverArea = Math.max(leftover1 ? leftover1.w * leftover1.h : 0, leftover2 ? leftover2.w * leftover2.h : 0);
+
+                        if (score < bestScore || (Math.abs(score - bestScore) < this.epsilon && maxLeftoverArea > bestMaxLeftoverSide)) {
+                            bestScore = score;
+                            bestRectIndex = i;
+                            bestRotated = true;
+                            bestMaxLeftoverSide = maxLeftoverArea;
+                        }
+                    }
+                }
+
+                if (bestRectIndex !== -1) {
+                    this.placeItem(bin, bestRectIndex, bestRotated, item, neededW, neededH);
+                    return true;
+                }
+                return false;
+            }
+
+            simulateSplit(freeRect, placedW, placedH) {
+                let remW = freeRect.w - placedW;
+                let remH = freeRect.h - placedH;
+                let r1, r2;
+                if (remW > remH) { 
+                    if (remW > this.epsilon) r1 = { w: remW, h: freeRect.h };
+                    if (remH > this.epsilon) r2 = { w: placedW, h: remH };
+                } else { 
+                    if (remH > this.epsilon) r1 = { w: freeRect.w, h: remH };
+                    if (remW > this.epsilon) r2 = { w: remW, h: placedH };
+                }
+                return [r1, r2];
+            }
+
+            placeItem(bin, rectIndex, rotated, item, neededW, neededH) {
+                let free = bin.freeRects[rectIndex];
+                let placedW = rotated ? neededH : neededW;
+                let placedH = rotated ? neededW : neededH;
+
+                let placedItem = new Rect(free.x, free.y, rotated ? item.h : item.w, rotated ? item.w : item.h);
+                placedItem.id = item.id;
+                placedItem.label = item.label; 
+                placedItem.originalW = item.w;
+                placedItem.originalH = item.h;
+                placedItem.rotated = rotated;
+                
+                bin.placedRects.push(placedItem);
+                bin.freeRects.splice(rectIndex, 1);
+
+                let newFreeRects = [];
+                let remW = free.w - placedW;
+                let remH = free.h - placedH;
+
+                if (remW > remH) { 
+                     if (remW > this.epsilon) newFreeRects.push(new Rect(free.x + placedW, free.y, remW, free.h));
+                     if (remH > this.epsilon) newFreeRects.push(new Rect(free.x, free.y + placedH, placedW, remH));
+                } else { 
+                     if (remH > this.epsilon) newFreeRects.push(new Rect(free.x, free.y + placedH, free.w, remH));
+                     if (remW > this.epsilon) newFreeRects.push(new Rect(free.x + placedW, free.y, remW, placedH));
+                }
+
+                bin.freeRects.push(...newFreeRects);
+            }
+        }
+
+        // --- 2. 介面操作邏輯 ---
+
+        let currentBins = []; // 儲存計算結果供 Modal 使用
+
+        function getColor(id) {
+            let baseId = 0;
+            if (typeof id === 'string' && id.includes('-')) {
+                baseId = parseInt(id.split('-')[0]);
+            } else {
+                baseId = parseInt(id) || 0;
+            }
+            const hue = (baseId * 137.508) % 360; 
+            return `hsl(${hue}, 70%, 85%)`; 
+        }
+        function getDarkColor(id) {
+            let baseId = 0;
+            if (typeof id === 'string' && id.includes('-')) {
+                baseId = parseInt(id.split('-')[0]);
+            } else {
+                baseId = parseInt(id) || 0;
+            }
+            const hue = (baseId * 137.508) % 360; 
+            return `hsl(${hue}, 80%, 25%)`; 
+        }
+
+        function addMasterSheetRow(w = 1524, h = 6096) {
+            const container = document.getElementById('masterSheetsList');
+            const count = container.children.length;
+            const label = String.fromCharCode(65 + count);
+
+            const div = document.createElement('div');
+            div.className = "flex items-center gap-2 mb-2";
+            div.innerHTML = `
+                <div class="flex items-center justify-center bg-blue-100 text-blue-700 font-bold rounded w-8 h-10 shrink-0 master-label">
+                    #${label}
+                </div>
+                <div class="flex-1">
+                    <input type="number" class="master-w w-full p-2 border border-gray-300 rounded text-sm" placeholder="寬" value="${w}">
+                </div>
+                <span class="text-gray-400">x</span>
+                <div class="flex-1">
+                    <input type="number" class="master-h w-full p-2 border border-gray-300 rounded text-sm" placeholder="高" value="${h}">
+                </div>
+                <button onclick="removeMasterSheetRow(this)" class="text-red-400 hover:text-red-600 p-2 rounded hover:bg-red-50">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            container.appendChild(div);
+        }
+
+        function removeMasterSheetRow(btn) {
+            btn.parentElement.remove();
+            const rows = document.querySelectorAll('#masterSheetsList > div');
+            rows.forEach((row, index) => {
+                const label = String.fromCharCode(65 + index);
+                row.querySelector('.master-label').innerText = '#' + label;
+            });
+        }
+
+        window.onload = function() {
+            addMasterSheetRow(1524, 6096);
+        };
+
+        function updateRowNumbers() {
+            const rows = document.querySelectorAll('#partsTableBody tr');
+            rows.forEach((row, index) => {
+                const cell = row.querySelector('.row-index');
+                if (cell) cell.innerText = index + 1;
+            });
+        }
+
+        function addOrUpdatePartRow(w, h, q, label) {
+            const rows = document.querySelectorAll('#partsTableBody tr');
+            let found = false;
+            
+            const targetW = parseFloat(w);
+            const targetH = parseFloat(h);
+            const addQ = parseInt(q);
+
+            for (let row of rows) {
+                const rLabel = row.querySelector('.row-index').innerText;
+                const rW = parseFloat(row.querySelector('.part-w').value);
+                const rH = parseFloat(row.querySelector('.part-h').value);
+                
+                if (rLabel === label && Math.abs(rW - targetW) < 0.1 && Math.abs(rH - targetH) < 0.1) {
+                    const qInput = row.querySelector('.part-q');
+                    const currentQ = parseInt(qInput.value) || 0;
+                    qInput.value = currentQ + addQ;
+                    row.classList.remove('row-highlight');
+                    void row.offsetWidth; 
+                    row.classList.add('row-highlight');
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found) {
+                addPartRow(w, h, q, label);
+            }
+        }
+
+        function addPartRow(w='', h='', q='1', customLabel=null) {
+            const tbody = document.getElementById('partsTableBody');
+            let newLabel = customLabel;
+
+            if (!newLabel) {
+                const rows = document.querySelectorAll('#partsTableBody tr');
+                let maxId = 0;
+                rows.forEach(r => {
+                    const txt = r.querySelector('.row-index').innerText;
+                    if (/^\d+$/.test(txt)) {
+                        maxId = Math.max(maxId, parseInt(txt));
+                    }
+                });
+                newLabel = maxId + 1;
+            }
+
+            const row = document.createElement('tr');
+            row.className = "border-b hover:bg-gray-50 transition";
+            row.innerHTML = `
+                <td class="p-2 text-center font-bold text-gray-500 row-index">${newLabel}</td>
+                <td class="p-2"><input type="number" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="${w}"></td>
+                <td class="p-2"><input type="number" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="${h}"></td>
+                <td class="p-2"><input type="number" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="${q}"></td>
+                <td class="p-2 text-center flex justify-center gap-2">
+                    <button onclick="openAutoSplitModal(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動拆解拼接"><i class="fas fa-magic"></i></button>
+                    <button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td>
+                </td>
+            `;
+            tbody.appendChild(row);
+            
+            const tableContainer = document.querySelector('.overflow-y-auto');
+            if(tableContainer) tableContainer.scrollTop = tableContainer.scrollHeight;
+        }
+
+        function deleteRow(btn) {
+            const row = btn.closest('tr');
+            if(document.querySelectorAll('#partsTableBody tr').length > 1) {
+                row.remove();
+            } else {
+                row.querySelectorAll('input').forEach(input => input.value = '');
+            }
+        }
+        
+        function clearParts() {
+            if(!confirm('確定要清空所有零件資料嗎？')) return;
+            const tbody = document.getElementById('partsTableBody');
+            tbody.innerHTML = '';
+            addPartRow(); 
+        }
+
+        // --- 互動拆解 Modal 邏輯 ---
+        let currentSplitTarget = null; 
+
+        function openAutoSplitModal(btn) {
+            const row = btn.closest('tr');
+            const wInput = row.querySelector('.part-w');
+            const hInput = row.querySelector('.part-h');
+            const qInput = row.querySelector('.part-q');
+            const originalW = parseFloat(wInput.value);
+            const originalH = parseFloat(hInput.value);
+            const currentQ = parseInt(qInput.value);
+            const originalId = row.querySelector('.row-index').innerText;
+
+            if (!originalW || !originalH) {
+                alert("請先輸入有效的尺寸");
+                return;
+            }
+
+            document.getElementById('splitQtyInput').value = currentQ; 
+            document.getElementById('splitQtyInput').max = currentQ;
+            document.getElementById('splitQtyMax').innerText = `/ 最大 ${currentQ}`;
+
+            currentSplitTarget = { row, w: originalW, h: originalH, q: currentQ, id: originalId };
+
+            const sheetRows = document.querySelectorAll('#masterSheetsList > div');
+            if (sheetRows.length === 0) {
+                alert("請至少設定一種母材規格");
+                return;
+            }
+            
+            let definitions = [];
+            sheetRows.forEach(r => {
+                const mw = parseFloat(r.querySelector('.master-w').value) || 0;
+                const mh = parseFloat(r.querySelector('.master-h').value) || 0;
+                if(mw > 0 && mh > 0) definitions.push({w: mw, h: mh});
+            });
+
+            const kerf = parseFloat(document.getElementById('kerfSize').value) || 0;
+            const epsilon = 0.1; 
+
+            const dir = originalW >= originalH ? 'w' : 'h';
+            const dimToSplit = dir === 'w' ? originalW : originalH;
+            const otherDim = dir === 'w' ? originalH : originalW;
+
+            const calcSeg = (segs) => {
+                const segSizeRaw = (dimToSplit / segs);
+                const segSize = Math.round(segSizeRaw * 10) / 10; 
+                
+                const wNeed = (dir === 'w' ? segSize : otherDim) + kerf;
+                const hNeed = (dir === 'w' ? otherDim : segSize) + kerf;
+                
+                let fits = false;
+                let rotatedFit = false;
+
+                for(let def of definitions) {
+                    if (wNeed <= def.w + epsilon && hNeed <= def.h + epsilon) {
+                        fits = true; break;
+                    }
+                    if (hNeed <= def.w + epsilon && wNeed <= def.h + epsilon) {
+                        fits = true; rotatedFit = true; break;
+                    }
+                }
+                return { size: segSize, fits: fits, rotated: rotatedFit, wNeed, hNeed };
+            };
+
+            const res2 = calcSeg(2);
+            const res3 = calcSeg(3);
+
+            document.getElementById('modalPartName').innerText = `#${originalId} (${originalW} x ${originalH})`;
+            const optionsContainer = document.getElementById('splitOptions');
+            optionsContainer.innerHTML = ''; 
+
+            const renderBtn = (segs, res) => {
+                const dimStr = dir === 'w' 
+                    ? `${res.size.toFixed(1)} x ${originalH}` 
+                    : `${originalW} x ${res.size.toFixed(1)}`;
+                
+                const statusClass = res.fits ? 'bg-green-50 border-green-300 hover:bg-green-100' : 'bg-red-50 border-red-300 hover:bg-red-100';
+                const textClass = res.fits ? 'text-green-800' : 'text-red-800';
+                
+                let statusText = '';
+                if (res.fits) {
+                    statusText = res.rotated ? '<i class="fas fa-sync-alt mr-1"></i>可旋轉放入' : '<i class="fas fa-check-circle mr-1"></i>可放入';
+                } else {
+                    statusText = `<i class="fas fa-exclamation-triangle mr-1"></i>過大 (需 ${res.wNeed.toFixed(1)}x${res.hNeed.toFixed(1)})`;
+                }
+
+                return `
+                    <button onclick="applySplit(${segs}, '${dir}')" class="w-full text-left p-4 border-2 rounded-lg transition flex justify-between items-center group ${statusClass}">
+                        <div>
+                            <div class="font-bold text-lg mb-1 ${textClass}">切成 ${segs} 段</div>
+                            <div class="text-sm text-gray-600 font-mono">單段: ${dimStr}</div>
+                        </div>
+                        <div class="text-sm font-bold ${textClass} flex items-center bg-white bg-opacity-60 px-2 py-1 rounded">
+                            ${statusText}
+                        </div>
+                    </button>
+                `;
+            };
+
+            optionsContainer.innerHTML += renderBtn(2, res2);
+            optionsContainer.innerHTML += renderBtn(3, res3);
+
+            const modal = document.getElementById('autoSplitModal');
+            modal.classList.add('active');
+            document.body.classList.add('modal-active');
+        }
+
+        function closeAutoSplitModal() {
+            const modal = document.getElementById('autoSplitModal');
+            modal.classList.remove('active');
+            document.body.classList.remove('modal-active');
+            currentSplitTarget = null;
+        }
+
+        function applySplit(segs, dir) {
+            if(!currentSplitTarget) return;
+            const { row, w, h, q, id } = currentSplitTarget;
+            
+            let splitCount = parseInt(document.getElementById('splitQtyInput').value);
+            if (isNaN(splitCount) || splitCount < 1) splitCount = 1;
+            if (splitCount > q) splitCount = q; 
+
+            if (q > splitCount) {
+                row.querySelector('.part-q').value = q - splitCount;
+            } else {
+                row.remove();
+            }
+
+            const dimToSplit = dir === 'w' ? w : h;
+            const segSizeRaw = dimToSplit / segs;
+            const segSize = Math.round(segSizeRaw * 10) / 10;
+            
+            let currentTotal = 0;
+            for(let i=0; i<segs-1; i++) {
+                let subId = `${id}-${i+1}`;
+                if(dir === 'w') addOrUpdatePartRow(segSize, h, splitCount, subId);
+                else addOrUpdatePartRow(w, segSize, splitCount, subId);
+                currentTotal += segSize;
+            }
+            
+            const lastSizeRaw = dimToSplit - currentTotal;
+            const lastSize = Math.round(lastSizeRaw * 10) / 10;
+            let lastSubId = `${id}-${segs}`;
+            
+            if(dir === 'w') addOrUpdatePartRow(lastSize, h, splitCount, lastSubId);
+            else addOrUpdatePartRow(w, lastSize, splitCount, lastSubId);
+
+            closeAutoSplitModal();
+        }
+
+        // --- Sheet Detail Modal Logic ---
+        function viewSheetDetail(index) {
+            const bin = currentBins[index];
+            if (!bin) return;
+
+            // 1. Populate Headers
+            document.getElementById('sheetDetailTitle').innerText = `SHEET ${index + 1}`;
+            document.getElementById('sheetDetailSub').innerText = `母材 #${bin.label} (${bin.width} x ${bin.height}) | 利用率: ${((bin.placedRects.reduce((sum, r) => sum + (r.originalW * r.originalH), 0) / (bin.width * bin.height)) * 100).toFixed(1)}%`;
+
+            // 2. Render Canvas in Modal
+            // We need to wait for modal to be visible so canvas has width
+            const modal = document.getElementById('sheetDetailModal');
+            modal.classList.add('active');
+            document.body.classList.add('modal-active');
+
+            // 延遲繪圖以確保 DOM 寬度正確
+            setTimeout(() => {
+                drawBin(bin, 'detailCanvas');
+            }, 100);
+
+            // 3. Render Parts List
+            const listContainer = document.getElementById('sheetPartsList');
+            const binParts = getBinStats(bin);
+            
+            listContainer.innerHTML = binParts.map(p => `
+                <div class="flex justify-between items-center py-2 px-3 bg-gray-50 rounded border border-gray-200 mb-1">
+                    <div class="flex items-center">
+                        <span class="inline-block w-3 h-3 rounded-full mr-2 shadow-sm" style="background-color: ${getColor(p.id)}"></span>
+                        <span class="font-bold text-gray-700">No.${p.id}</span>
+                        <span class="text-gray-500 ml-2 text-sm font-mono">(${p.w} x ${p.h})</span>
+                        ${p.rotated ? '<span class="ml-2 text-xs text-blue-500 bg-blue-100 px-1 rounded">旋轉</span>' : ''}
+                    </div>
+                    <span class="font-bold bg-white px-3 py-1 rounded text-sm text-gray-700 shadow-sm border border-gray-100">x${p.count}</span>
+                </div>
+            `).join('');
+        }
+
+        function closeSheetModal() {
+            const modal = document.getElementById('sheetDetailModal');
+            modal.classList.remove('active');
+            document.body.classList.remove('modal-active');
+        }
+
+        // --- 主計算邏輯 ---
+
+        function startCalculation() {
+            const btn = document.getElementById('calcBtn');
+            const originalText = btn.innerHTML;
+            
+            btn.innerHTML = '<span class="spinner"></span>計算中...';
+            btn.disabled = true;
+            btn.classList.add('bg-gray-400', 'cursor-not-allowed');
+            
+            document.getElementById('errorLog').classList.add('hidden');
+
+            setTimeout(() => {
+                try {
+                    calculate();
+                } catch (e) {
+                    showError("未知錯誤: " + e.message);
+                    console.error(e);
+                } finally {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    btn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                }
+            }, 100);
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('errorLog');
+            el.innerHTML = msg; 
+            el.classList.remove('hidden');
+            el.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function calculate() {
+            const sheetRows = document.querySelectorAll('#masterSheetsList > div');
+            const binDefinitions = [];
+            
+            sheetRows.forEach((r, index) => {
+                const mw = parseFloat(r.querySelector('.master-w').value);
+                const mh = parseFloat(r.querySelector('.master-h').value);
+                const label = r.querySelector('.master-label').innerText.replace('#', '');
+                
+                if(!isNaN(mw) && !isNaN(mh) && mw > 0 && mh > 0) {
+                    binDefinitions.push({w: mw, h: mh, label: label});
+                }
+            });
+
+            const kerfInput = document.getElementById('kerfSize');
+            const kerf = kerfInput.value === "" ? 0 : parseFloat(kerfInput.value);
+            
+            if (binDefinitions.length === 0) {
+                showError("請至少設定一種有效的母材尺寸");
+                return;
+            }
+
+            const validItems = [];
+            const invalidParts = []; 
+
+            const rows = document.querySelectorAll('#partsTableBody tr');
+
+            rows.forEach((row, index) => {
+                const wInput = row.querySelector('.part-w');
+                const hInput = row.querySelector('.part-h');
+                const qInput = row.querySelector('.part-q');
+                
+                const w = parseFloat(wInput.value);
+                const h = parseFloat(hInput.value);
+                const q = parseInt(qInput.value) || 0;
+                
+                const rowIdText = row.querySelector('.row-index').innerText;
+                const rowId = rowIdText; 
+
+                if (!isNaN(w) && !isNaN(h) && w > 0 && h > 0 && q > 0) {
+                    const partWWithKerf = w + kerf;
+                    const partHWithKerf = h + kerf;
+                    const epsilon = 0.1; 
+                    
+                    let canFitAny = false;
+                    for(let def of binDefinitions) {
+                        const fitsStandard = (partWWithKerf <= def.w + epsilon && partHWithKerf <= def.h + epsilon);
+                        const fitsRotated = (partHWithKerf <= def.w + epsilon && partWWithKerf <= def.h + epsilon);
+                        if (fitsStandard || fitsRotated) {
+                            canFitAny = true;
+                            break;
+                        }
+                    }
+
+                    if (!canFitAny) {
+                        invalidParts.push(`<li><strong>零件 #${rowId} (${w}x${h})</strong>: 超過所有設定的母材尺寸</li>`);
+                    } else {
+                        for (let i = 0; i < q; i++) {
+                            validItems.push({ 
+                                w: w, 
+                                h: h, 
+                                id: rowId, 
+                                label: `${w}x${h}`,
+                            });
+                        }
+                    }
+                }
+            });
+
+            if (validItems.length > 0) {
+                const packer = new GuillotinePacker(binDefinitions, kerf, true);
+                packer.fit(validItems);
+                
+                // 儲存全域變數，供 Modal 使用
+                currentBins = packer.bins;
+                
+                renderResults(packer);
+            } else {
+                document.getElementById('resultsArea').innerHTML = '<div class="text-center text-gray-500 py-10">無可排版的零件。</div>';
+                document.getElementById('summaryCard').classList.add('hidden');
+            }
+
+            if (invalidParts.length > 0) {
+                let msg = `
+                    <div class="font-bold mb-2"><i class="fas fa-exclamation-triangle mr-2"></i>以下零件尺寸過大，系統已自動略過：</div>
+                    <ul class="list-disc pl-5 space-y-1 text-sm">
+                        ${invalidParts.join('')}
+                    </ul>
+                `;
+                showError(msg);
+            }
+
+            setTimeout(() => {
+                if (invalidParts.length > 0) {
+                     document.getElementById('errorLog').scrollIntoView({ behavior: 'smooth' });
+                } else {
+                     document.getElementById('summaryCard').scrollIntoView({ behavior: 'smooth' });
+                }
+            }, 100);
+        }
+
+        function getBinStats(bin) {
+            const stats = {};
+            bin.placedRects.forEach(r => {
+                if (!stats[r.id]) {
+                    stats[r.id] = { count: 0, w: r.originalW, h: r.originalH, id: r.id, rotated: r.rotated };
+                }
+                stats[r.id].count++;
+            });
+            return Object.values(stats).sort((a,b) => {
+                const aId = a.id.toString();
+                const bId = b.id.toString();
+                return aId.localeCompare(bId, undefined, { numeric: true, sensitivity: 'base' });
+            });
+        }
+
+        function renderResults(packer) {
+            const resultsArea = document.getElementById('resultsArea');
+            const summaryCard = document.getElementById('summaryCard');
+            const breakdownEl = document.getElementById('sheetBreakdown');
+            
+            resultsArea.innerHTML = '';
+            breakdownEl.innerHTML = '';
+            summaryCard.classList.remove('hidden');
+
+            if (packer.bins.length === 0) {
+                return;
+            }
+
+            document.getElementById('resTotalBins').innerText = packer.bins.length + " 塊";
+
+            const sheetStats = {};
+            let totalBinArea = 0;
+            let totalUsedArea = 0;
+            
+            packer.bins.forEach(bin => {
+                const label = bin.label || '?';
+                const binArea = bin.width * bin.height;
+                let binUsed = 0;
+                
+                bin.placedRects.forEach(r => {
+                    binUsed += r.originalW * r.originalH; 
+                });
+
+                if (!sheetStats[label]) {
+                    sheetStats[label] = { 
+                        count: 0, 
+                        usedArea: 0, 
+                        totalArea: 0, 
+                        width: bin.width, 
+                        height: bin.height 
+                    };
+                }
+                sheetStats[label].count++;
+                sheetStats[label].usedArea += binUsed;
+                sheetStats[label].totalArea += binArea;
+
+                totalBinArea += binArea;
+                totalUsedArea += binUsed;
+            });
+
+            let statsHtml = '';
+            Object.keys(sheetStats).sort().forEach(label => {
+                const s = sheetStats[label];
+                const efficiency = ((s.usedArea / s.totalArea) * 100).toFixed(1);
+                statsHtml += `
+                    <div class="flex justify-between items-center border-b border-slate-600 border-opacity-30 py-1 last:border-0">
+                        <span class="text-gray-300">母材 #${label} <span class="text-xs text-gray-400">(${s.width}x${s.height})</span></span>
+                        <div class="text-right flex items-center gap-3">
+                            <span class="font-bold text-yellow-400">${s.count} <span class="text-xs font-normal text-gray-400">塊</span></span>
+                            <span class="text-xs bg-slate-600 px-2 py-0.5 rounded text-white min-w-[45px] text-center">${efficiency}%</span>
+                        </div>
+                    </div>
+                `;
+            });
+            breakdownEl.innerHTML = statsHtml;
+
+            let efficiency = (totalUsedArea / totalBinArea * 100).toFixed(2);
+            let waste = (totalBinArea - totalUsedArea).toLocaleString();
+
+            document.getElementById('resEfficiency').innerText = `${efficiency}%`;
+            document.getElementById('resWaste').innerText = `${waste} mm²`;
+
+            // 渲染清單列表
+            packer.bins.forEach((bin, index) => {
+                let binUsedArea = bin.placedRects.reduce((sum, r) => sum + (r.originalW * r.originalH), 0);
+                let binEff = ((binUsedArea / (bin.width * bin.height)) * 100).toFixed(1);
+                let totalParts = bin.placedRects.length;
+
+                // 建立卡片 (點擊後開啟 Modal)
+                const card = document.createElement('div');
+                card.className = "bg-white p-4 rounded-lg shadow border-l-4 border-blue-500 hover:shadow-md transition cursor-pointer flex justify-between items-center";
+                card.onclick = () => viewSheetDetail(index);
+                card.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="flex flex-col items-center justify-center bg-blue-50 w-12 h-12 rounded-full text-blue-600 font-bold text-lg">
+                            ${index + 1}
+                        </div>
+                        <div>
+                            <div class="font-bold text-gray-800 text-lg">SHEET ${index + 1}</div>
+                            <div class="text-xs text-gray-500">母材 #${bin.label} (${bin.width}x${bin.height})</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-6">
+                        <div class="text-right">
+                            <div class="text-sm font-bold text-gray-700">利用率 ${binEff}%</div>
+                            <div class="text-xs text-gray-400">零件數: ${totalParts}</div>
+                        </div>
+                        <div class="text-gray-400">
+                            <i class="fas fa-chevron-right"></i>
+                        </div>
+                    </div>
+                `;
+                resultsArea.appendChild(card);
+            });
+        }
+
+        function drawBin(bin, canvasId) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            let wrapperWidth = canvas.parentElement.clientWidth;
+            if (!wrapperWidth || wrapperWidth < 100) {
+                // 如果在 Modal 中且尚未完全顯示，可能寬度為0
+                // 給一個預設值，確保不會壞掉，Modal 顯示後會正確縮放
+                wrapperWidth = 800; 
+            }
+
+            const aspectRatio = bin.height / bin.width;
+            canvas.width = wrapperWidth * 2; 
+            canvas.height = (wrapperWidth * aspectRatio) * 2;
+            canvas.style.width = '100%';
+            canvas.style.height = 'auto';
+
+            const scale = canvas.width / bin.width;
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 4; 
+            ctx.strokeRect(0, 0, canvas.width, canvas.height);
+
+            bin.placedRects.forEach(rect => {
+                const rx = rect.x * scale;
+                const ry = rect.y * scale;
+                
+                const rw = rect.w * scale;
+                const rh = rect.h * scale;
+
+                ctx.fillStyle = getColor(rect.id);
+                ctx.fillRect(rx, ry, rw, rh);
+
+                ctx.strokeStyle = '#4b5563'; 
+                ctx.lineWidth = 2;
+                ctx.strokeRect(rx, ry, rw, rh);
+
+                // 文字繪製 (保持原樣，但在大圖模式下字會更清楚)
+                if (rw > 30 && rh > 20) {
+                    ctx.fillStyle = getDarkColor(rect.id);
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+
+                    let centerX = rx + rw/2;
+                    let centerY = ry + rh/2;
+                    
+                    let idFontSize = Math.max(14, Math.min(rw/3, rh/3, 80)); 
+                    let dimFontSize = Math.max(10, Math.min(rw/6, rh/6, 30));
+
+                    ctx.font = `bold ${idFontSize}px Arial`;
+                    ctx.fillText(`No.${rect.id}`, centerX, centerY - dimFontSize/1.5);
+                    
+                    ctx.font = `${dimFontSize}px Arial`;
+                    let wLabel = rect.rotated ? rect.originalH : rect.originalW;
+                    let hLabel = rect.rotated ? rect.originalW : rect.originalH;
+                    let labelText = `${wLabel}x${hLabel}`;
+                    
+                    if (rect.rotated) labelText += " (R)";
+                    ctx.fillText(labelText, centerX, centerY + idFontSize/1.5);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
