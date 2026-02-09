@@ -48,7 +48,7 @@
     <header class="bg-slate-800 text-white p-4 shadow-md sticky top-0 z-50">
         <div class="container mx-auto flex justify-between items-center">
             <h1 class="text-xl md:text-2xl font-bold"><i class="fas fa-layer-group mr-2"></i>鋼板切割排版計算器</h1>
-            <span class="text-xs md:text-sm bg-slate-700 px-2 py-1 rounded">V2.14 面積單位優化版</span>
+            <span class="text-xs md:text-sm bg-slate-700 px-2 py-1 rounded">V2.15 配置詳情優化版</span>
         </div>
     </header>
 
@@ -995,7 +995,6 @@
             breakdownEl.innerHTML = statsHtml;
 
             let efficiency = (totalUsedArea / totalBinArea * 100).toFixed(2);
-            // 轉換為 m² (1 m² = 1,000,000 mm²)
             let totalWasteArea = totalBinArea - totalUsedArea;
             let usedAreaM2 = (totalUsedArea / 1000000).toFixed(3);
             let wasteM2 = (totalWasteArea / 1000000).toFixed(3);
@@ -1007,8 +1006,13 @@
             // 渲染清單列表
             packer.bins.forEach((bin, index) => {
                 let binUsedArea = bin.placedRects.reduce((sum, r) => sum + (r.originalW * r.originalH), 0);
-                let binEff = ((binUsedArea / (bin.width * bin.height)) * 100).toFixed(1);
+                let binTotalArea = bin.width * bin.height;
+                let binWasteArea = binTotalArea - binUsedArea;
+                let binEff = ((binUsedArea / binTotalArea) * 100).toFixed(1);
                 let totalParts = bin.placedRects.length;
+                
+                let usedM2 = (binUsedArea / 1000000).toFixed(3);
+                let wasteM2 = (binWasteArea / 1000000).toFixed(3);
 
                 // 建立卡片 (點擊後開啟 Modal)
                 const card = document.createElement('div');
@@ -1025,9 +1029,11 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-6">
-                        <div class="text-right">
-                            <div class="text-sm font-bold text-gray-700">利用率 ${binEff}%</div>
-                            <div class="text-xs text-gray-400">零件數: ${totalParts}</div>
+                        <div class="text-right text-xs">
+                            <div class="text-sm font-bold text-gray-700 mb-1">利用率 ${binEff}%</div>
+                            <div class="text-gray-500">使用: ${usedM2} m²</div>
+                            <div class="text-gray-400">廢料: ${wasteM2} m²</div>
+                            <div class="text-gray-400 mt-1">零件數: ${totalParts}</div>
                         </div>
                         <div class="text-gray-400">
                             <i class="fas fa-chevron-right"></i>
