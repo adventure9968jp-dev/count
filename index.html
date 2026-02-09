@@ -48,7 +48,7 @@
     <header class="bg-slate-800 text-white p-4 shadow-md sticky top-0 z-50">
         <div class="container mx-auto flex justify-between items-center">
             <h1 class="text-xl md:text-2xl font-bold"><i class="fas fa-layer-group mr-2"></i>鋼板切割排版計算器</h1>
-            <span class="text-xs md:text-sm bg-slate-700 px-2 py-1 rounded">V2.15 配置詳情優化版</span>
+            <span class="text-xs md:text-sm bg-slate-700 px-2 py-1 rounded">V2.16 標準規格版</span>
         </div>
     </header>
 
@@ -109,16 +109,7 @@
                                 </tr>
                             </thead>
                             <tbody id="partsTableBody">
-                                <!-- 預設資料 -->
-                                <tr class="border-b hover:bg-gray-50 transition"><td class="p-1 text-center font-bold text-gray-500 row-index">1</td><td class="p-1"><input type="number" inputmode="decimal" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="3747"></td><td class="p-1"><input type="number" inputmode="decimal" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="1130"></td><td class="p-1"><input type="number" inputmode="numeric" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="2"></td><td class="p-1 text-center flex justify-center gap-1"><button onclick="openAutoSplitModal(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動拆解拼接"><i class="fas fa-magic"></i></button><button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td></tr>
-                                <tr class="border-b hover:bg-gray-50 transition"><td class="p-1 text-center font-bold text-gray-500 row-index">2</td><td class="p-1"><input type="number" inputmode="decimal" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="2100"></td><td class="p-1"><input type="number" inputmode="decimal" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="1922"></td><td class="p-1"><input type="number" inputmode="numeric" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="1"></td><td class="p-1 text-center flex justify-center gap-1"><button onclick="openAutoSplitModal(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動拆解拼接"><i class="fas fa-magic"></i></button><button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td></tr>
-                                <tr class="border-b hover:bg-gray-50 transition"><td class="p-1 text-center font-bold text-gray-500 row-index">3</td><td class="p-1"><input type="number" inputmode="decimal" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="2094"></td><td class="p-1"><input type="number" inputmode="decimal" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="600"></td><td class="p-1"><input type="number" inputmode="numeric" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="1"></td><td class="p-1 text-center flex justify-center gap-1"><button onclick="openAutoSplitModal(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動拆解拼接"><i class="fas fa-magic"></i></button><button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td></tr>
-                                <tr class="border-b hover:bg-gray-50 transition"><td class="p-1 text-center font-bold text-gray-500 row-index">4</td><td class="p-1"><input type="number" inputmode="decimal" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="2190"></td><td class="p-1"><input type="number" inputmode="decimal" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="840"></td><td class="p-1"><input type="number" inputmode="numeric" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="1"></td><td class="p-1 text-center flex justify-center gap-1"><button onclick="openAutoSplitModal(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動拆解拼接"><i class="fas fa-magic"></i></button><button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td></tr>
-                                <tr class="border-b hover:bg-gray-50 transition"><td class="p-1 text-center font-bold text-gray-500 row-index">5</td><td class="p-1"><input type="number" inputmode="decimal" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="2100"></td><td class="p-1"><input type="number" inputmode="decimal" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="854"></td><td class="p-1"><input type="number" inputmode="numeric" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="1"></td><td class="p-1 text-center flex justify-center gap-1"><button onclick="openAutoSplitModal(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動拆解拼接"><i class="fas fa-magic"></i></button><button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td></tr>
-                                <tr class="border-b hover:bg-gray-50 transition"><td class="p-1 text-center font-bold text-gray-500 row-index">6</td><td class="p-1"><input type="number" inputmode="decimal" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="2196"></td><td class="p-1"><input type="number" inputmode="decimal" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="190"></td><td class="p-1"><input type="number" inputmode="numeric" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="1"></td><td class="p-1 text-center flex justify-center gap-1"><button onclick="openAutoSplitModal(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動拆解拼接"><i class="fas fa-magic"></i></button><button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td></tr>
-                                <tr class="border-b hover:bg-gray-50 transition"><td class="p-1 text-center font-bold text-gray-500 row-index">7</td><td class="p-1"><input type="number" inputmode="decimal" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="2196"></td><td class="p-1"><input type="number" inputmode="decimal" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="260"></td><td class="p-1"><input type="number" inputmode="numeric" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="1"></td><td class="p-1 text-center flex justify-center gap-1"><button onclick="openAutoSplitModal(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動拆解拼接"><i class="fas fa-magic"></i></button><button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td></tr>
-                                <tr class="border-b hover:bg-gray-50 transition"><td class="p-1 text-center font-bold text-gray-500 row-index">8</td><td class="p-1"><input type="number" inputmode="decimal" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="2196"></td><td class="p-1"><input type="number" inputmode="decimal" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="756"></td><td class="p-1"><input type="number" inputmode="numeric" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="1"></td><td class="p-1 text-center flex justify-center gap-1"><button onclick="openAutoSplitModal(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動拆解拼接"><i class="fas fa-magic"></i></button><button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td></tr>
-                                <tr class="border-b hover:bg-gray-50 transition"><td class="p-1 text-center font-bold text-gray-500 row-index">9</td><td class="p-1"><input type="number" inputmode="decimal" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="2280"></td><td class="p-1"><input type="number" inputmode="decimal" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="710"></td><td class="p-1"><input type="number" inputmode="numeric" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="2"></td><td class="p-1 text-center flex justify-center gap-1"><button onclick="openAutoSplitModal(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動拆解拼接"><i class="fas fa-magic"></i></button><button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td></tr>
+                                <!-- 預設清空，由 JS 初始化一列 -->
                             </tbody>
                         </table>
                     </div>
@@ -174,7 +165,7 @@
                     <!-- 預設顯示畫面 -->
                     <div class="bg-white p-10 rounded-lg shadow text-center text-gray-400 min-h-[400px] flex flex-col justify-center items-center">
                         <i class="fas fa-cube text-6xl mb-4"></i>
-                        <p class="text-lg">請確認尺寸並點擊「開始計算」</p>
+                        <p class="text-lg">請輸入尺寸並點擊「開始計算」</p>
                         <p class="text-sm">計算後將顯示配置清單</p>
                     </div>
                 </div>
@@ -466,23 +457,23 @@
             return `hsl(${hue}, 80%, 25%)`; 
         }
 
-        function addMasterSheetRow(w = 1524, h = 6096) {
+        function addMasterSheetRow() {
             const container = document.getElementById('masterSheetsList');
             const count = container.children.length;
-            const label = String.fromCharCode(65 + count);
+            const label = String.fromCharCode(65 + count); // A, B, C...
 
             const div = document.createElement('div');
             div.className = "flex items-center gap-2 mb-2";
             div.innerHTML = `
-                <div class="flex items-center justify-center bg-blue-100 text-blue-700 font-bold rounded w-8 h-10 shrink-0 master-label">
+                <div class="flex items-center justify-center bg-blue-100 text-blue-700 font-bold rounded w-10 h-10 shrink-0 master-label">
                     #${label}
                 </div>
                 <div class="flex-1">
-                    <input type="number" inputmode="decimal" class="master-w w-full p-2 border border-gray-300 rounded text-sm" placeholder="寬" value="${w}">
-                </div>
-                <span class="text-gray-400">x</span>
-                <div class="flex-1">
-                    <input type="number" inputmode="decimal" class="master-h w-full p-2 border border-gray-300 rounded text-sm" placeholder="高" value="${h}">
+                    <select class="master-select w-full p-2 border border-gray-300 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option value="1524,3048">規格 A (5' x 10') - 1524x3048</option>
+                        <option value="1524,6096">規格 B (5' x 20') - 1524x6096</option>
+                        <option value="1219,2438">規格 C (4' x 8') - 1219x2438</option>
+                    </select>
                 </div>
                 <button onclick="removeMasterSheetRow(this)" class="text-red-400 hover:text-red-600 p-2 rounded hover:bg-red-50">
                     <i class="fas fa-trash"></i>
@@ -500,8 +491,15 @@
             });
         }
 
+        // 初始化
         window.onload = function() {
-            addMasterSheetRow(1524, 6096);
+            // 清空舊的內容 (確保乾淨)
+            document.getElementById('masterSheetsList').innerHTML = '';
+            document.getElementById('partsTableBody').innerHTML = '';
+            
+            // 新增預設空行
+            addMasterSheetRow();
+            addPartRow();
         };
 
         function renumberRows() {
@@ -542,7 +540,7 @@
             }
         }
 
-        function addPartRow(w='', h='', q='1', customLabel=null) {
+        function addPartRow(w='', h='', q='', customLabel=null) {
             const tbody = document.getElementById('partsTableBody');
             let newLabel = customLabel;
 
@@ -627,8 +625,10 @@
             
             let definitions = [];
             sheetRows.forEach(r => {
-                const mw = parseFloat(r.querySelector('.master-w').value) || 0;
-                const mh = parseFloat(r.querySelector('.master-h').value) || 0;
+                const select = r.querySelector('.master-select');
+                const val = select.value.split(',');
+                const mw = parseFloat(val[0]);
+                const mh = parseFloat(val[1]);
                 if(mw > 0 && mh > 0) definitions.push({w: mw, h: mh});
             });
 
@@ -822,8 +822,10 @@
             const binDefinitions = [];
             
             sheetRows.forEach((r, index) => {
-                const mw = parseFloat(r.querySelector('.master-w').value);
-                const mh = parseFloat(r.querySelector('.master-h').value);
+                const select = r.querySelector('.master-select');
+                const val = select.value.split(',');
+                const mw = parseFloat(val[0]);
+                const mh = parseFloat(val[1]);
                 const label = r.querySelector('.master-label').innerText.replace('#', '');
                 
                 if(!isNaN(mw) && !isNaN(mh) && mw > 0 && mh > 0) {
