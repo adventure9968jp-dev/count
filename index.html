@@ -6,13 +6,21 @@
     <title>鋼板切割排版計算器 (2D Bin Packing)</title>
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 配置 Tailwind 以支援 Class 模式的 Dark Mode -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
     <!-- 引入 FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f3f4f6; }
+        body { font-family: 'Noto Sans TC', sans-serif; }
         .canvas-container { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        /* Canvas 保持白色底，模擬圖紙 */
         canvas { width: 100%; height: auto; display: block; background-color: #fff; }
+        
         /* 載入動畫 */
         .spinner {
             border: 3px solid rgba(255,255,255,0.3);
@@ -34,21 +42,30 @@
         
         /* 表格列閃爍動畫 */
         @keyframes highlight {
-            0% { background-color: #dbeafe; }
-            100% { background-color: transparent; }
+            0% { background-color: #3b82f6; opacity: 0.5; }
+            100% { background-color: transparent; opacity: 1; }
         }
         .row-highlight {
             animation: highlight 1s ease-out;
         }
     </style>
 </head>
-<body class="text-gray-800">
+<body class="text-gray-800 bg-gray-100 dark:bg-gray-900 dark:text-gray-100 transition-colors duration-300">
 
     <!-- 標題區 -->
-    <header class="bg-slate-800 text-white p-4 shadow-md sticky top-0 z-50">
+    <header class="bg-slate-800 text-white p-4 shadow-md sticky top-0 z-50 dark:bg-slate-900">
         <div class="container mx-auto flex justify-between items-center">
-            <h1 class="text-xl md:text-2xl font-bold"><i class="fas fa-layer-group mr-2"></i>鋼板切割排版計算器</h1>
-            <span class="text-xs md:text-sm bg-slate-700 px-2 py-1 rounded">V2.20 最佳解確認版</span>
+            <h1 class="text-xl md:text-2xl font-bold flex items-center">
+                <i class="fas fa-layer-group mr-2"></i>鋼板切割排版計算器
+                <span class="ml-2 text-xs md:text-sm bg-slate-700 px-2 py-1 rounded font-normal hidden sm:inline-block">V2.17 深夜模式版</span>
+            </h1>
+            
+            <div class="flex items-center gap-3">
+                <!-- 深夜模式切換按鈕 -->
+                <button id="themeToggle" class="p-2 rounded-full hover:bg-slate-700 transition focus:outline-none" title="切換日/夜模式">
+                    <i class="fas fa-moon" id="themeIcon"></i>
+                </button>
+            </div>
         </div>
     </header>
 
@@ -59,13 +76,13 @@
             <!-- 左側：輸入控制區 -->
             <div class="lg:col-span-1 space-y-6">
                 
-                <!-- 1. 母材設定 (改為多重列表) -->
-                <div class="bg-white p-5 rounded-lg shadow border-l-4 border-blue-500">
+                <!-- 1. 母材設定 -->
+                <div class="bg-white p-5 rounded-lg shadow border-l-4 border-blue-500 dark:bg-gray-800 dark:border-blue-600 transition-colors">
                     <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-lg font-bold flex items-center">
+                        <h2 class="text-lg font-bold flex items-center text-gray-800 dark:text-gray-100">
                             <i class="fas fa-border-all mr-2 text-blue-500"></i>母材庫存設定
                         </h2>
-                        <button onclick="addMasterSheetRow()" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1 rounded transition">
+                        <button onclick="addMasterSheetRow()" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1 rounded transition dark:bg-blue-900 dark:text-blue-200 dark:hover:bg-blue-800">
                             <i class="fas fa-plus mr-1"></i>新增規格
                         </button>
                     </div>
@@ -74,32 +91,32 @@
                         <!-- 母材列表容器 -->
                     </div>
 
-                    <div class="mt-4 pt-4 border-t border-gray-200">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">裁切損耗(mm)</label>
-                        <input type="number" id="kerfSize" value="3" inputmode="decimal" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-gray-500 outline-none transition" placeholder="例如: 3">
-                        <p class="text-xs text-gray-500 mt-1">* 系統將自動選擇最適合的母材尺寸進行排版</p>
+                    <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <label class="block text-sm font-medium text-gray-700 mb-1 dark:text-gray-300">裁切損耗(mm)</label>
+                        <input type="number" id="kerfSize" value="3" inputmode="decimal" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-gray-500 outline-none transition bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="例如: 3">
+                        <p class="text-xs text-gray-500 mt-1 dark:text-gray-400">* 系統將自動選擇最適合的母材尺寸進行排版</p>
                     </div>
                 </div>
 
                 <!-- 2. 零件清單 -->
-                <div class="bg-white p-5 rounded-lg shadow border-l-4 border-green-500">
+                <div class="bg-white p-5 rounded-lg shadow border-l-4 border-green-500 dark:bg-gray-800 dark:border-green-600 transition-colors">
                     <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-lg font-bold flex items-center">
+                        <h2 class="text-lg font-bold flex items-center text-gray-800 dark:text-gray-100">
                             <i class="fas fa-th-list mr-2 text-green-500"></i>零件清單
                         </h2>
                         <div class="flex gap-2">
-                            <button onclick="clearParts()" class="text-xs bg-red-100 text-red-700 hover:bg-red-200 px-3 py-1 rounded transition">
+                            <button onclick="clearParts()" class="text-xs bg-red-100 text-red-700 hover:bg-red-200 px-3 py-1 rounded transition dark:bg-red-900 dark:text-red-200 dark:hover:bg-red-800">
                                 <i class="fas fa-trash-alt mr-1"></i>清空
                             </button>
-                            <button onclick="addPartRow()" class="text-xs bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1 rounded transition">
+                            <button onclick="addPartRow()" class="text-xs bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1 rounded transition dark:bg-green-900 dark:text-green-200 dark:hover:bg-green-800">
                                 <i class="fas fa-plus mr-1"></i>新增
                             </button>
                         </div>
                     </div>
                     
-                    <div class="w-full overflow-y-auto max-h-[500px]">
+                    <div class="w-full overflow-y-auto max-h-[500px] scrollbar-thin">
                         <table class="w-full text-sm text-left table-fixed">
-                            <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0 z-10">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0 z-10 dark:bg-gray-700 dark:text-gray-300">
                                 <tr>
                                     <th class="px-1 py-2 w-[10%] text-center">#</th>
                                     <th class="px-1 py-2 w-[25%]">寬 (W)</th>
@@ -108,32 +125,32 @@
                                     <th class="px-1 py-2 w-[20%] text-center">操作</th>
                                 </tr>
                             </thead>
-                            <tbody id="partsTableBody">
+                            <tbody id="partsTableBody" class="dark:text-gray-300">
                                 <!-- 預設清空，由 JS 初始化一列 -->
                             </tbody>
                         </table>
                     </div>
                     <div class="mt-4 flex gap-2">
-                        <button onclick="addPartRow()" class="w-1/2 py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded hover:border-green-500 hover:text-green-500 transition">
+                        <button onclick="addPartRow()" class="w-1/2 py-2 border-2 border-dashed border-gray-300 text-gray-500 rounded hover:border-green-500 hover:text-green-500 transition dark:border-gray-600 dark:text-gray-400 dark:hover:text-green-400 dark:hover:border-green-500">
                             + 新增一行
                         </button>
-                        <button id="calcBtn" onclick="startCalculation()" class="w-1/2 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 shadow-lg transition transform active:scale-95 flex justify-center items-center">
+                        <button id="calcBtn" onclick="startCalculation()" class="w-1/2 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 shadow-lg transition transform active:scale-95 flex justify-center items-center dark:bg-blue-700 dark:hover:bg-blue-600">
                             <i class="fas fa-calculator mr-2"></i>開始計算
                         </button>
                     </div>
                 </div>
 
                 <!-- 統計結果摘要 -->
-                <div id="summaryCard" class="bg-slate-800 text-white p-5 rounded-lg shadow hidden">
+                <div id="summaryCard" class="bg-slate-800 text-white p-5 rounded-lg shadow hidden dark:bg-slate-900 transition-colors">
                     <h3 class="text-lg font-bold mb-3 border-b border-slate-600 pb-2">計算結果總覽</h3>
                     <div class="space-y-4">
-                        <div class="flex justify-between items-center bg-slate-700 p-2 rounded">
+                        <div class="flex justify-between items-center bg-slate-700 p-2 rounded dark:bg-slate-800">
                             <span>所需母材總數：</span>
                             <span class="font-bold text-2xl text-yellow-400" id="resTotalBins">0</span>
                         </div>
                         
                         <!-- 詳細統計區 -->
-                        <div id="sheetBreakdown" class="bg-slate-700 bg-opacity-50 p-3 rounded text-sm space-y-2">
+                        <div id="sheetBreakdown" class="bg-slate-700 bg-opacity-50 p-3 rounded text-sm space-y-2 dark:bg-slate-800 dark:bg-opacity-50">
                             <!-- JS 動態插入 -->
                         </div>
 
@@ -155,18 +172,18 @@
                 </div>
 
                 <!-- 錯誤/警告訊息區 -->
-                <div id="errorLog" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 text-sm rounded shadow-sm"></div>
+                <div id="errorLog" class="hidden bg-red-100 border-l-4 border-red-500 text-red-700 p-4 text-sm rounded shadow-sm dark:bg-red-900 dark:text-red-200 dark:border-red-400"></div>
 
             </div>
 
-            <!-- 右側：視覺化結果 (現在只顯示提示) -->
+            <!-- 右側：視覺化結果 -->
             <div class="lg:col-span-2">
                 <div id="resultsArea" class="space-y-4">
                     <!-- 預設顯示畫面 -->
-                    <div class="bg-white p-10 rounded-lg shadow text-center text-gray-400 min-h-[400px] flex flex-col justify-center items-center">
-                        <i class="fas fa-cube text-6xl mb-4"></i>
-                        <p class="text-lg">請輸入尺寸並點擊「開始計算」</p>
-                        <p class="text-sm">計算後將顯示配置清單</p>
+                    <div class="bg-white p-10 rounded-lg shadow text-center text-gray-400 min-h-[400px] flex flex-col justify-center items-center dark:bg-gray-800 dark:text-gray-500 transition-colors">
+                        <i class="fas fa-cube text-6xl mb-4 text-gray-300 dark:text-gray-600"></i>
+                        <p class="text-lg font-medium">請輸入尺寸並點擊「開始計算」</p>
+                        <p class="text-sm opacity-75">計算後將顯示配置清單</p>
                     </div>
                 </div>
             </div>
@@ -174,37 +191,37 @@
         </div>
     </main>
 
-    <!-- 拆解選擇 Modal (Confirm Best Split) -->
+    <!-- 拆解選擇 Modal -->
     <div id="autoSplitModal" class="modal fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
-        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50" onclick="closeAutoSplitModal()"></div>
-        <div class="modal-container bg-white w-11/12 md:max-w-md mx-auto rounded shadow-lg z-50 overflow-y-auto transform transition-all scale-100">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-50 backdrop-blur-sm" onclick="closeAutoSplitModal()"></div>
+        <div class="modal-container bg-white w-11/12 md:max-w-md mx-auto rounded shadow-lg z-50 overflow-y-auto transform transition-all scale-100 dark:bg-gray-800 dark:text-gray-100">
             <div class="modal-content py-4 text-left px-6">
-                <div class="flex justify-between items-center pb-3 border-b">
-                    <p class="text-xl font-bold text-gray-700"><i class="fas fa-cut mr-2 text-blue-500"></i>確認拆解方案</p>
-                    <div class="modal-close cursor-pointer z-50 text-gray-500 hover:text-red-500" onclick="closeAutoSplitModal()">
+                <div class="flex justify-between items-center pb-3 border-b dark:border-gray-700">
+                    <p class="text-xl font-bold text-gray-700 dark:text-gray-100"><i class="fas fa-cut mr-2 text-blue-500"></i>確認拆解方案</p>
+                    <div class="modal-close cursor-pointer z-50 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400" onclick="closeAutoSplitModal()">
                         <i class="fas fa-times text-xl"></i>
                     </div>
                 </div>
                 <div class="my-5 space-y-4">
                     <div class="flex justify-between items-center">
-                        <p class="text-gray-600 text-sm">目標零件: <span id="modalPartName" class="font-bold text-gray-800 text-base"></span></p>
-                        <div class="flex items-center gap-2 bg-blue-50 px-3 py-1 rounded border border-blue-200">
-                            <span class="text-xs text-blue-800">拆解組數:</span>
-                            <input type="number" id="splitQtyInput" inputmode="numeric" class="w-12 text-center border rounded text-sm p-1" value="1" min="1">
-                            <span class="text-xs text-gray-500" id="splitQtyMax"></span>
+                        <p class="text-gray-600 text-sm dark:text-gray-300">目標零件: <span id="modalPartName" class="font-bold text-gray-800 text-base dark:text-white"></span></p>
+                        <div class="flex items-center gap-2 bg-blue-50 px-3 py-1 rounded border border-blue-200 dark:bg-blue-900/30 dark:border-blue-800">
+                            <span class="text-xs text-blue-800 dark:text-blue-200">拆解組數:</span>
+                            <input type="number" id="splitQtyInput" inputmode="numeric" class="w-12 text-center border rounded text-sm p-1 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="1" min="1">
+                            <span class="text-xs text-gray-500 dark:text-gray-400" id="splitQtyMax"></span>
                         </div>
                     </div>
                     
-                    <p class="text-xs text-gray-500">系統已計算出最佳切割方式，請確認：</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">系統已計算出最佳切割方式，請確認：</p>
                     
                     <!-- 最佳解顯示區 -->
-                    <div id="bestSplitResult" class="bg-green-50 border border-green-200 rounded p-4">
+                    <div id="bestSplitResult" class="bg-green-50 border border-green-200 rounded p-4 dark:bg-green-900/20 dark:border-green-800">
                         <!-- JS 會填入內容 -->
                     </div>
                 </div>
                 <div class="flex justify-end pt-2 gap-2">
-                    <button onclick="closeAutoSplitModal()" class="px-4 py-2 bg-gray-200 text-gray-600 rounded hover:bg-gray-300 transition text-sm">取消</button>
-                    <button id="confirmSplitBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm font-bold shadow-md">
+                    <button onclick="closeAutoSplitModal()" class="px-4 py-2 bg-gray-200 text-gray-600 rounded hover:bg-gray-300 transition text-sm dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600">取消</button>
+                    <button id="confirmSplitBtn" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition text-sm font-bold shadow-md dark:bg-blue-600 dark:hover:bg-blue-500">
                         <i class="fas fa-check mr-1"></i>確認執行
                     </button>
                 </div>
@@ -212,36 +229,36 @@
         </div>
     </div>
 
-    <!-- 排版圖詳情 Modal (Sheet Detail) -->
+    <!-- 排版圖詳情 Modal -->
     <div id="sheetDetailModal" class="modal fixed w-full h-full top-0 left-0 flex items-center justify-center z-50">
-        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-75" onclick="closeSheetModal()"></div>
-        <div class="modal-container bg-white w-11/12 md:max-w-6xl h-[90vh] mx-auto rounded shadow-lg z-50 overflow-hidden flex flex-col transform transition-all scale-100">
+        <div class="modal-overlay absolute w-full h-full bg-gray-900 opacity-75 backdrop-blur-sm" onclick="closeSheetModal()"></div>
+        <div class="modal-container bg-white w-11/12 md:max-w-6xl h-[90vh] mx-auto rounded shadow-lg z-50 overflow-hidden flex flex-col transform transition-all scale-100 dark:bg-gray-900">
             <!-- Header -->
-            <div class="flex justify-between items-center py-3 px-6 border-b bg-gray-50">
+            <div class="flex justify-between items-center py-3 px-6 border-b bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
                 <div>
-                    <p class="text-2xl font-bold text-gray-800" id="sheetDetailTitle">配置 X</p>
-                    <p class="text-sm text-gray-500" id="sheetDetailSub">母材資料...</p>
+                    <p class="text-2xl font-bold text-gray-800 dark:text-white" id="sheetDetailTitle">配置 X</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400" id="sheetDetailSub">母材資料...</p>
                 </div>
-                <div class="modal-close cursor-pointer z-50 text-gray-500 hover:text-red-500" onclick="closeSheetModal()">
+                <div class="modal-close cursor-pointer z-50 text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400" onclick="closeSheetModal()">
                     <i class="fas fa-times text-2xl"></i>
                 </div>
             </div>
             
             <!-- Body -->
-            <div class="flex-1 overflow-y-auto p-6 bg-gray-100">
+            <div class="flex-1 overflow-y-auto p-6 bg-gray-100 dark:bg-black/50">
                 <div class="flex flex-col lg:flex-row gap-6">
                     <!-- 左側：大圖 -->
                     <div class="lg:w-2/3">
-                        <div class="bg-white p-2 rounded shadow border border-gray-200 overflow-hidden" id="sheetCanvasWrapper">
+                        <div class="bg-white p-2 rounded shadow border border-gray-200 overflow-hidden dark:bg-gray-200 dark:border-gray-600" id="sheetCanvasWrapper">
                             <canvas id="detailCanvas"></canvas>
                         </div>
                     </div>
                     
                     <!-- 右側：清單 -->
                     <div class="lg:w-1/3">
-                        <div class="bg-white rounded shadow border border-gray-200 p-4">
-                            <h4 class="font-bold text-gray-700 mb-3 border-b pb-2"><i class="fas fa-list mr-2"></i>切割明細 (Cut List)</h4>
-                            <div id="sheetPartsList" class="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
+                        <div class="bg-white rounded shadow border border-gray-200 p-4 dark:bg-gray-800 dark:border-gray-700">
+                            <h4 class="font-bold text-gray-700 mb-3 border-b pb-2 dark:text-gray-200 dark:border-gray-600"><i class="fas fa-list mr-2"></i>切割明細 (Cut List)</h4>
+                            <div id="sheetPartsList" class="space-y-2 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin">
                                 <!-- JS Generated -->
                             </div>
                         </div>
@@ -251,12 +268,41 @@
         </div>
     </div>
 
-    <footer class="bg-gray-200 text-center p-4 text-xs text-gray-500 mt-10">
+    <footer class="bg-gray-200 text-center p-4 text-xs text-gray-500 mt-10 dark:bg-gray-800 dark:text-gray-400 transition-colors">
         &copy; 2024 Steel Sheet Optimizer | 2D Bin Packing Algorithm
     </footer>
 
     <!-- JavaScript 邏輯 -->
     <script>
+        // --- 0. 主題切換邏輯 ---
+        const themeToggleBtn = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        
+        // 檢查儲存的主題或系統偏好
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+            themeIcon.classList.remove('fa-moon');
+            themeIcon.classList.add('fa-sun');
+        } else {
+            document.documentElement.classList.remove('dark');
+            themeIcon.classList.remove('fa-sun');
+            themeIcon.classList.add('fa-moon');
+        }
+
+        themeToggleBtn.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            
+            if (document.documentElement.classList.contains('dark')) {
+                localStorage.theme = 'dark';
+                themeIcon.classList.remove('fa-moon');
+                themeIcon.classList.add('fa-sun');
+            } else {
+                localStorage.theme = 'light';
+                themeIcon.classList.remove('fa-sun');
+                themeIcon.classList.add('fa-moon');
+            }
+        });
+
         // --- 1. 核心類別定義 ---
 
         class Rect {
@@ -439,7 +485,7 @@
 
         // --- 2. 介面操作邏輯 ---
 
-        let currentBins = []; // 儲存計算結果供 Modal 使用
+        let currentBins = []; 
 
         function getColor(id) {
             let baseId = 0;
@@ -470,17 +516,17 @@
             const div = document.createElement('div');
             div.className = "flex items-center gap-2 mb-2";
             div.innerHTML = `
-                <div class="flex items-center justify-center bg-blue-100 text-blue-700 font-bold rounded w-10 h-10 shrink-0 master-label">
+                <div class="flex items-center justify-center bg-blue-100 text-blue-700 font-bold rounded w-10 h-10 shrink-0 master-label dark:bg-blue-900 dark:text-blue-200">
                     #${label}
                 </div>
                 <div class="flex-1">
-                    <select class="master-select w-full p-2 border border-gray-300 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+                    <select class="master-select w-full p-2 border border-gray-300 rounded text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                         <option value="1524,3048">規格 A (5' x 10') - 1524x3048</option>
                         <option value="1524,6096">規格 B (5' x 20') - 1524x6096</option>
                         <option value="1219,2438">規格 C (4' x 8') - 1219x2438</option>
                     </select>
                 </div>
-                <button onclick="removeMasterSheetRow(this)" class="text-red-400 hover:text-red-600 p-2 rounded hover:bg-red-50">
+                <button onclick="removeMasterSheetRow(this)" class="text-red-400 hover:text-red-600 p-2 rounded hover:bg-red-50 dark:hover:bg-red-900/30">
                     <i class="fas fa-trash"></i>
                 </button>
             `;
@@ -497,11 +543,8 @@
         }
 
         window.onload = function() {
-            // 清空舊的內容
             document.getElementById('masterSheetsList').innerHTML = '';
             document.getElementById('partsTableBody').innerHTML = '';
-            
-            // 新增預設空行
             addMasterSheetRow();
             addPartRow();
         };
@@ -561,15 +604,15 @@
             }
 
             const row = document.createElement('tr');
-            row.className = "border-b hover:bg-gray-50 transition";
+            row.className = "border-b hover:bg-gray-50 transition dark:border-gray-700 dark:hover:bg-gray-800";
             row.innerHTML = `
-                <td class="p-1 text-center font-bold text-gray-500 row-index">${newLabel}</td>
-                <td class="p-1"><input type="number" inputmode="decimal" class="part-w w-full p-2 border border-gray-300 rounded text-base" value="${w}"></td>
-                <td class="p-1"><input type="number" inputmode="decimal" class="part-h w-full p-2 border border-gray-300 rounded text-base" value="${h}"></td>
-                <td class="p-1"><input type="number" inputmode="numeric" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base" value="${q}"></td>
+                <td class="p-1 text-center font-bold text-gray-500 row-index dark:text-gray-400">${newLabel}</td>
+                <td class="p-1"><input type="number" inputmode="decimal" class="part-w w-full p-2 border border-gray-300 rounded text-base dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="${w}"></td>
+                <td class="p-1"><input type="number" inputmode="decimal" class="part-h w-full p-2 border border-gray-300 rounded text-base dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="${h}"></td>
+                <td class="p-1"><input type="number" inputmode="numeric" class="part-q w-full p-2 border border-gray-300 rounded text-center text-base dark:bg-gray-700 dark:border-gray-600 dark:text-white" value="${q}"></td>
                 <td class="p-1 text-center flex justify-center gap-1">
-                    <button onclick="calculateBestSplit(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition" title="自動智慧快切"><i class="fas fa-cut"></i></button>
-                    <button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition"><i class="fas fa-trash"></i></button></td>
+                    <button onclick="calculateBestSplit(this)" class="bg-yellow-100 text-yellow-700 hover:bg-yellow-200 p-2 rounded w-8 h-8 flex items-center justify-center transition dark:bg-yellow-900/50 dark:text-yellow-200 dark:hover:bg-yellow-900" title="自動智慧快切"><i class="fas fa-cut"></i></button>
+                    <button onclick="deleteRow(this)" class="bg-red-100 text-red-500 hover:bg-red-200 p-2 rounded w-8 h-8 flex items-center justify-center transition dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50"><i class="fas fa-trash"></i></button></td>
                 </td>
             `;
             tbody.appendChild(row);
@@ -598,7 +641,7 @@
         }
 
         // --- 智慧快切 (Best Split) 邏輯 ---
-        let pendingSplit = null; // Store proposed split data
+        let pendingSplit = null; 
 
         function calculateBestSplit(btn) {
             const row = btn.closest('tr');
@@ -636,7 +679,6 @@
             const kerf = parseFloat(document.getElementById('kerfSize').value) || 0;
             const epsilon = 0.1;
 
-            // 檢查函數
             const checkFit = (partW, partH) => {
                  const wNeed = partW + kerf;
                  const hNeed = partH + kerf;
@@ -647,22 +689,18 @@
                  return false;
             };
 
-            // 1. 檢查是否原本就放得下
             if (checkFit(originalW, originalH)) {
                 if(!confirm(`此零件 (#${originalId}) 已可放入現有母材。確定要強制拆解嗎？(將嘗試切為2段)`)) {
                     return;
                 }
-                // Force split into 2
                 proposeSplit(2, originalW, originalH, currentQ, originalId, row);
                 return;
             }
 
-            // 2. 尋找最佳切分 (Unlimited loop up to 100)
             const MAX_SEGMENTS = 100;
             const dirLonger = originalW >= originalH ? 'w' : 'h'; 
             
             for (let segs = 2; segs <= MAX_SEGMENTS; segs++) {
-                // 方案 1: 切長邊
                 const dimToSplit1 = dirLonger === 'w' ? originalW : originalH;
                 const otherDim1 = dirLonger === 'w' ? originalH : originalW;
                 const segSize1 = Math.round((dimToSplit1 / segs) * 10) / 10;
@@ -672,7 +710,6 @@
                     return;
                 }
 
-                // 方案 2: 切短邊 (備用)
                 const dirShorter = dirLonger === 'w' ? 'h' : 'w';
                 const dimToSplit2 = dirShorter === 'w' ? originalW : originalH;
                 const otherDim2 = dirShorter === 'w' ? originalH : originalW;
@@ -688,7 +725,6 @@
         }
 
         function proposeSplit(segs, w, h, q, id, row, dir = null) {
-            // 如果 dir 沒給 (例如強制切分)，預設切長邊
             if(!dir) dir = w >= h ? 'w' : 'h';
 
             const dimToSplit = dir === 'w' ? w : h;
@@ -698,10 +734,8 @@
                     ? `${segSize} x ${h}` 
                     : `${w} x ${segSize}`;
 
-            // 儲存待執行資料
             pendingSplit = { row, w, h, q, id, segs, dir, segSize };
 
-            // 更新並顯示 Modal
             document.getElementById('modalPartName').innerText = `#${id} (${w} x ${h})`;
             document.getElementById('splitQtyInput').value = q;
             document.getElementById('splitQtyInput').max = q;
@@ -709,10 +743,10 @@
 
             const resultContainer = document.getElementById('bestSplitResult');
             resultContainer.innerHTML = `
-                <div class="flex justify-between items-center text-green-800">
+                <div class="flex justify-between items-center text-green-800 dark:text-green-300">
                     <div>
                         <div class="font-bold text-lg"><i class="fas fa-star mr-2"></i>建議：切成 ${segs} 段</div>
-                        <div class="text-sm mt-1">單段尺寸: <span class="font-mono bg-white px-1 rounded">${dimStr}</span></div>
+                        <div class="text-sm mt-1">單段尺寸: <span class="font-mono bg-white px-1 rounded dark:bg-gray-700 dark:text-white">${dimStr}</span></div>
                     </div>
                     <div class="text-2xl opacity-20"><i class="fas fa-check-circle"></i></div>
                 </div>
@@ -722,7 +756,6 @@
             modal.classList.add('active');
             document.body.classList.add('modal-active');
             
-            // 綁定確認按鈕事件
             const confirmBtn = document.getElementById('confirmSplitBtn');
             confirmBtn.onclick = () => executePendingSplit();
         }
@@ -731,19 +764,16 @@
             if(!pendingSplit) return;
             const { row, w, h, q, id, segs, dir } = pendingSplit;
             
-            // 讀取使用者可能修改的數量
             let splitCount = parseInt(document.getElementById('splitQtyInput').value);
             if (isNaN(splitCount) || splitCount < 1) splitCount = 1;
             if (splitCount > q) splitCount = q; 
 
-            // 1. 處理原行
             if (q > splitCount) {
                 row.querySelector('.part-q').value = q - splitCount;
             } else {
                 row.remove();
             }
 
-            // 2. 執行切割
             const dimToSplit = dir === 'w' ? w : h;
             const segSizeRaw = dimToSplit / segs;
             const segSize = Math.round(segSizeRaw * 10) / 10;
@@ -793,14 +823,14 @@
             const binParts = getBinStats(bin);
             
             listContainer.innerHTML = binParts.map(p => `
-                <div class="flex justify-between items-center py-2 px-3 bg-gray-50 rounded border border-gray-200 mb-1">
+                <div class="flex justify-between items-center py-2 px-3 bg-gray-50 rounded border border-gray-200 mb-1 dark:bg-gray-700 dark:border-gray-600">
                     <div class="flex items-center">
                         <span class="inline-block w-3 h-3 rounded-full mr-2 shadow-sm" style="background-color: ${getColor(p.id)}"></span>
-                        <span class="font-bold text-gray-700">No.${p.id}</span>
-                        <span class="text-gray-500 ml-2 text-sm font-mono">(${p.w} x ${p.h})</span>
-                        ${p.rotated ? '<span class="ml-2 text-xs text-blue-500 bg-blue-100 px-1 rounded">旋轉</span>' : ''}
+                        <span class="font-bold text-gray-700 dark:text-gray-200">No.${p.id}</span>
+                        <span class="text-gray-500 ml-2 text-sm font-mono dark:text-gray-400">(${p.w} x ${p.h})</span>
+                        ${p.rotated ? '<span class="ml-2 text-xs text-blue-500 bg-blue-100 px-1 rounded dark:bg-blue-900 dark:text-blue-300">旋轉</span>' : ''}
                     </div>
-                    <span class="font-bold bg-white px-3 py-1 rounded text-sm text-gray-700 shadow-sm border border-gray-100">x${p.count}</span>
+                    <span class="font-bold bg-white px-3 py-1 rounded text-sm text-gray-700 shadow-sm border border-gray-100 dark:bg-gray-600 dark:text-white dark:border-gray-500">x${p.count}</span>
                 </div>
             `).join('');
         }
@@ -919,12 +949,11 @@
                 const packer = new GuillotinePacker(binDefinitions, kerf, true);
                 packer.fit(validItems);
                 
-                // 儲存全域變數，供 Modal 使用
                 currentBins = packer.bins;
                 
                 renderResults(packer);
             } else {
-                document.getElementById('resultsArea').innerHTML = '<div class="text-center text-gray-500 py-10">無可排版的零件。</div>';
+                document.getElementById('resultsArea').innerHTML = '<div class="text-center text-gray-500 py-10 dark:text-gray-400">無可排版的零件。</div>';
                 document.getElementById('summaryCard').classList.add('hidden');
             }
 
@@ -1032,7 +1061,6 @@
             document.getElementById('resUsedArea').innerText = `${usedAreaM2} m²`;
             document.getElementById('resWaste').innerText = `${wasteM2} m²`;
 
-            // 渲染清單列表
             packer.bins.forEach((bin, index) => {
                 let binUsedArea = bin.placedRects.reduce((sum, r) => sum + (r.originalW * r.originalH), 0);
                 let binTotalArea = bin.width * bin.height;
@@ -1043,28 +1071,27 @@
                 let usedM2 = (binUsedArea / 1000000).toFixed(3);
                 let wasteM2 = (binWasteArea / 1000000).toFixed(3);
 
-                // 建立卡片 (點擊後開啟 Modal)
                 const card = document.createElement('div');
-                card.className = "bg-white p-4 rounded-lg shadow border-l-4 border-blue-500 hover:shadow-md transition cursor-pointer flex justify-between items-center";
+                card.className = "bg-white p-4 rounded-lg shadow border-l-4 border-blue-500 hover:shadow-md transition cursor-pointer flex justify-between items-center dark:bg-gray-800 dark:border-blue-600";
                 card.onclick = () => viewSheetDetail(index);
                 card.innerHTML = `
                     <div class="flex items-center gap-4">
-                        <div class="flex flex-col items-center justify-center bg-blue-50 w-12 h-12 rounded-full text-blue-600 font-bold text-lg">
+                        <div class="flex flex-col items-center justify-center bg-blue-50 w-12 h-12 rounded-full text-blue-600 font-bold text-lg dark:bg-blue-900/30 dark:text-blue-400">
                             ${index + 1}
                         </div>
                         <div>
-                            <div class="font-bold text-gray-800 text-lg">配置 ${index + 1}</div>
-                            <div class="text-xs text-gray-500">母材 #${bin.label} (${bin.width}x${bin.height})</div>
+                            <div class="font-bold text-gray-800 text-lg dark:text-white">配置 ${index + 1}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">母材 #${bin.label} (${bin.width}x${bin.height})</div>
                         </div>
                     </div>
                     <div class="flex items-center gap-6">
                         <div class="text-right text-xs">
-                            <div class="text-sm font-bold text-gray-700 mb-1">利用率 ${binEff}%</div>
-                            <div class="text-gray-500">使用: ${usedM2} m²</div>
-                            <div class="text-gray-400">廢料: ${wasteM2} m²</div>
-                            <div class="text-gray-400 mt-1">零件數: ${totalParts}</div>
+                            <div class="text-sm font-bold text-gray-700 mb-1 dark:text-gray-200">利用率 ${binEff}%</div>
+                            <div class="text-gray-500 dark:text-gray-400">使用: ${usedM2} m²</div>
+                            <div class="text-gray-400 dark:text-gray-500">廢料: ${wasteM2} m²</div>
+                            <div class="text-gray-400 mt-1 dark:text-gray-500">零件數: ${totalParts}</div>
                         </div>
-                        <div class="text-gray-400">
+                        <div class="text-gray-400 dark:text-gray-600">
                             <i class="fas fa-chevron-right"></i>
                         </div>
                     </div>
@@ -1080,8 +1107,6 @@
 
             let wrapperWidth = canvas.parentElement.clientWidth;
             if (!wrapperWidth || wrapperWidth < 100) {
-                // 如果在 Modal 中且尚未完全顯示，可能寬度為0
-                // 給一個預設值，確保不會壞掉，Modal 顯示後會正確縮放
                 wrapperWidth = 800; 
             }
 
@@ -1113,7 +1138,6 @@
                 ctx.lineWidth = 2;
                 ctx.strokeRect(rx, ry, rw, rh);
 
-                // 文字繪製 (保持原樣，但在大圖模式下字會更清楚)
                 if (rw > 30 && rh > 20) {
                     ctx.fillStyle = getDarkColor(rect.id);
                     ctx.textAlign = 'center';
